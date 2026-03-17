@@ -3,6 +3,12 @@
 [bot]
 # Max compute unit limit per transaction
 compute_unit_limit = 600000
+## Optional: how often (in milliseconds) to refresh the recent blockhash cache.
+## Defaults to 5000 ms (5 seconds) if not set.
+# blockhash_refresh_ms = 5000
+## Optional: how often (in milliseconds) to refresh on-chain pool data per mint.
+## Defaults to 3000 ms (3 seconds) if not set.
+# pool_refresh_ms = 3000
 
 [routing]
 # Configuration for each mint to process
@@ -18,7 +24,9 @@ raydium_clmm_pool_list = ["3ucNos4NbumPLZNWztqGHNFFgkHeRMBQAVemeeomsUxv"]
 raydium_cp_pool_list = []
 vertigo_pool_list = [] 
 lookup_table_accounts = ["8HvgxVyd22Jq9mmoojm4Awqw6sbymbF5pwLr8FtvySHs"]
-process_delay = 400
+# Delay between transaction attempts for this mint (in milliseconds).
+# Lower values increase trades per minute but can cause more RPC errors if too low.
+process_delay = 250
 
 [rpc]
 # RPC URL for the Solana network

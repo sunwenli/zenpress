@@ -47,7 +47,9 @@ pub async fn run_bot(config_path: &str) -> anyhow::Result<()> {
     let initial_blockhash = rpc_client.get_latest_blockhash()?;
     let cached_blockhash = Arc::new(Mutex::new(initial_blockhash));
 
-    let refresh_interval = Duration::from_secs(10);
+    // Allow configuring how frequently we refresh the recent blockhash.
+    // Default to 5 seconds if not explicitly set.
+    let refresh_interval = Duration::from_millis(config.bot.blockhash_refresh_ms.unwrap_or(5_000));
     let blockhash_client = rpc_client.clone();
     let blockhash_cache = cached_blockhash.clone();
     tokio::spawn(async move {
@@ -68,8 +70,10 @@ pub async fn run_bot(config_path: &str) -> anyhow::Result<()> {
 
         println!("   Token mint: {}", mint_config.mint);
         println!("   Wallet token ATA: {}", wallet_token_account);
-        // Check if the PWEASE token account exists and create it if it doesn't
+        // Check if the token account exists and create it if it doesn't.
+        // Add a small backoff between attempts to avoid hammering the RPC.
         println!("\n   Checking if token account exists...");
+        let mut attempts: u32 = 0;
         loop {
             match rpc_client.get_account(&wallet_token_account) {
                 Ok(_) => {
@@ -111,7 +115,12 @@ pub async fn run_bot(config_path: &str) -> anyhow::Result<()> {
                         }
                         Err(e) => {
                             println!("   Failed to create token account: {:?}", e);
-                            return Err(anyhow::anyhow!("Failed to create token account"));
+                            attempts += 1;
+                            if attempts >= 5 {
+                                return Err(anyhow::anyhow!("Failed to create token account after multiple attempts"));
+                            }
+                            // Brief pause before retrying to reduce RPC pressure.
+                            std::thread::sleep(std::time::Duration::from_millis(500));
                         }
                     }
                 }
@@ -141,7 +150,53 @@ pub async fn run_bot(config_path: &str) -> anyhow::Result<()> {
 
         let mint_pool_data = Arc::new(Mutex::new(pool_data));
 
-        // TODO: Add logic to periodically refresh pool data
+        // Periodically refresh on-chain pool data for this mint so that
+        // routing decisions stay up to date without restarting the bot.
+        let mint_pool_data_refresh = mint_pool_data.clone();
+        let rpc_client_refresh = rpc_client.clone();
+        let mint_config_for_refresh = mint_config.clone();
+        let wallet_for_refresh = wallet_kp.pubkey().to_string();
+        let pool_refresh_interval = Duration::from_millis(
+            config
+                .bot
+                .pool_refresh_ms
+                // Default: refresh every 3 seconds if not configured.
+                .unwrap_or(3_000),
+        );
+        tokio::spawn(async move {
+            loop {
+                match initialize_pool_data(
+                    &mint_config_for_refresh.mint,
+                    &wallet_for_refresh,
+                    mint_config_for_refresh.raydium_pool_list.as_ref(),
+                    mint_config_for_refresh.raydium_cp_pool_list.as_ref(),
+                    mint_config_for_refresh.pump_pool_list.as_ref(),
+                    mint_config_for_refresh.meteora_dlmm_pool_list.as_ref(),
+                    mint_config_for_refresh.whirlpool_pool_list.as_ref(),
+                    mint_config_for_refresh.raydium_clmm_pool_list.as_ref(),
+                    mint_config_for_refresh.meteora_damm_pool_list.as_ref(),
+                    mint_config_for_refresh.solfi_pool_list.as_ref(),
+                    mint_config_for_refresh.meteora_damm_v2_pool_list.as_ref(),
+                    mint_config_for_refresh.vertigo_pool_list.as_ref(),
+                    rpc_client_refresh.clone(),
+                )
+                .await
+                {
+                    Ok(new_data) => {
+                        let mut guard = mint_pool_data_refresh.lock().await;
+                        *guard = new_data;
+                    }
+                    Err(e) => {
+                        error!(
+                            "Failed to refresh pool data for mint {}: {}",
+                            mint_config_for_refresh.mint, e
+                        );
+                    }
+                }
+
+                tokio::time::sleep(pool_refresh_interval).await;
+            }
+        });
 
         let config_clone = config.clone();
         let mint_config_clone = mint_config.clone();

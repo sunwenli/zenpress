@@ -14,6 +14,14 @@ pub struct Config {
 #[derive(Debug, Deserialize, Clone)]
 pub struct BotConfig {
     pub compute_unit_limit: u32,
+    /// Interval (in milliseconds) at which the cached blockhash is refreshed.
+    /// If not set, a sensible default will be used.
+    #[serde(default)]
+    pub blockhash_refresh_ms: Option<u64>,
+    /// Interval (in milliseconds) at which on-chain pool data is refreshed.
+    /// If not set, a sensible default will be used.
+    #[serde(default)]
+    pub pool_refresh_ms: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
