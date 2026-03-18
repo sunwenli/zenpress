@@ -925,5 +925,20 @@ pub async fn initialize_pool_data(
         }
     }
 
+    info!(
+        mint = %mint,
+        raydium = pool_data.raydium_pools.len(),
+        raydium_cp = pool_data.raydium_cp_pools.len(),
+        raydium_clmm = pool_data.raydium_clmm_pools.len(),
+        pump = pool_data.pump_pools.len(),
+        dlmm = pool_data.dlmm_pairs.len(),
+        whirlpool = pool_data.whirlpool_pools.len(),
+        meteora_damm = pool_data.meteora_damm_pools.len(),
+        meteora_damm_v2 = pool_data.meteora_damm_v2_pools.len(),
+        solfi = pool_data.solfi_pools.len(),
+        vertigo = pool_data.vertigo_pools.len(),
+        "Pool data initialized"
+    );
+
     Ok(pool_data)
 }

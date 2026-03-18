@@ -22,6 +22,9 @@ pub struct BotConfig {
     /// If not set, a sensible default will be used.
     #[serde(default)]
     pub pool_refresh_ms: Option<u64>,
+    /// Log level (e.g. "info", "debug", "warn"). Overridden by `RUST_LOG` env if set.
+    #[serde(default)]
+    pub log_level: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

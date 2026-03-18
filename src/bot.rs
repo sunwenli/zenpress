@@ -18,7 +18,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 pub async fn run_bot(config_path: &str) -> anyhow::Result<()> {
     let config = Config::load(config_path)?;
@@ -68,20 +68,19 @@ pub async fn run_bot(config_path: &str) -> anyhow::Result<()> {
             &mint_owner,
         );
 
-        println!("   Token mint: {}", mint_config.mint);
-        println!("   Wallet token ATA: {}", wallet_token_account);
+        info!(mint = %mint_config.mint, ata = %wallet_token_account, "Token mint and wallet ATA");
         // Check if the token account exists and create it if it doesn't.
         // Add a small backoff between attempts to avoid hammering the RPC.
-        println!("\n   Checking if token account exists...");
+        info!(mint = %mint_config.mint, "Checking if token account exists");
         let mut attempts: u32 = 0;
         loop {
             match rpc_client.get_account(&wallet_token_account) {
                 Ok(_) => {
-                    println!("   token account exists!");
+                    info!(mint = %mint_config.mint, "Token account exists");
                     break;
                 }
                 Err(_) => {
-                    println!("   token account does not exist. Creating it...");
+                    warn!(mint = %mint_config.mint, attempt = attempts + 1, "Token account does not exist, creating ATA");
 
                     // Create the instruction to create the associated token account
                     let create_ata_ix =
@@ -111,10 +110,10 @@ pub async fn run_bot(config_path: &str) -> anyhow::Result<()> {
                     // Send the transaction
                     match rpc_client.send_and_confirm_transaction(&create_ata_tx) {
                         Ok(sig) => {
-                            println!("   token account created successfully! Signature: {}", sig);
+                            info!(mint = %mint_config.mint, signature = %sig, "Token account created successfully");
                         }
                         Err(e) => {
-                            println!("   Failed to create token account: {:?}", e);
+                            error!(mint = %mint_config.mint, error = %e, "Failed to create token account");
                             attempts += 1;
                             if attempts >= 5 {
                                 return Err(anyhow::anyhow!("Failed to create token account after multiple attempts"));
@@ -129,7 +128,7 @@ pub async fn run_bot(config_path: &str) -> anyhow::Result<()> {
     }
 
     for mint_config in &config.routing.mint_config_list {
-        info!("Processing mint: {}", mint_config.mint);
+        info!(mint = %mint_config.mint, process_delay_ms = mint_config.process_delay, "Processing mint and initializing pool data");
 
         let pool_data = initialize_pool_data(
             &mint_config.mint,
@@ -185,12 +184,10 @@ pub async fn run_bot(config_path: &str) -> anyhow::Result<()> {
                     Ok(new_data) => {
                         let mut guard = mint_pool_data_refresh.lock().await;
                         *guard = new_data;
+                        debug!(mint = %mint_config_for_refresh.mint, "Pool data refreshed");
                     }
                     Err(e) => {
-                        error!(
-                            "Failed to refresh pool data for mint {}: {}",
-                            mint_config_for_refresh.mint, e
-                        );
+                        error!(mint = %mint_config_for_refresh.mint, error = %e, "Pool data refresh failed");
                     }
                 }
 
@@ -221,7 +218,7 @@ pub async fn run_bot(config_path: &str) -> anyhow::Result<()> {
                                         addresses: lookup_table.addresses.into_owned(),
                                     };
                                     lookup_table_accounts_list.push(lookup_table_account);
-                                    info!("   Successfully loaded lookup table: {}", pubkey);
+                                    info!(lookup_table = %pubkey, "Loaded lookup table");
                                 }
                                 Err(e) => {
                                     error!(
@@ -248,16 +245,14 @@ pub async fn run_bot(config_path: &str) -> anyhow::Result<()> {
             }
         }
         if lookup_table_accounts_list.is_empty() {
-            warn!("   Warning: No valid lookup tables were loaded");
+            warn!(mint = %mint_config.mint, "No valid lookup tables loaded");
         } else {
-            info!(
-                "   Loaded {} lookup tables successfully",
-                lookup_table_accounts_list.len()
-            );
+            info!(mint = %mint_config.mint, count = lookup_table_accounts_list.len(), "Lookup tables loaded");
         }
 
         tokio::spawn(async move {
             let process_delay = Duration::from_millis(mint_config_clone.process_delay);
+            info!(mint = %mint_config_clone.mint, process_delay_ms = mint_config_clone.process_delay, "Mint loop started");
 
             loop {
                 let latest_blockhash = {
@@ -278,19 +273,13 @@ pub async fn run_bot(config_path: &str) -> anyhow::Result<()> {
                 .await
                 {
                     Ok(signatures) => {
-                        info!(
-                            "Transactions sent successfully for mint {}",
-                            mint_config_clone.mint
-                        );
+                        info!(mint = %mint_config_clone.mint, count = signatures.len(), "Transactions sent");
                         for signature in signatures {
-                            info!("  Signature: {}", signature);
+                            info!(mint = %mint_config_clone.mint, signature = %signature, "Tx sent");
                         }
                     }
                     Err(e) => {
-                        error!(
-                            "Error sending transaction for mint {}: {}",
-                            mint_config_clone.mint, e
-                        );
+                        error!(mint = %mint_config_clone.mint, error = %e, "Send transaction failed");
                     }
                 }
 
@@ -314,10 +303,10 @@ async fn blockhash_refresher(
             Ok(blockhash) => {
                 let mut guard = cached_blockhash.lock().await;
                 *guard = blockhash;
-                info!("Blockhash refreshed: {}", blockhash);
+                debug!(blockhash = %blockhash, "Blockhash refreshed");
             }
             Err(e) => {
-                error!("Failed to refresh blockhash: {:?}", e);
+                error!(error = %e, "Blockhash refresh failed");
             }
         }
         tokio::time::sleep(refresh_interval).await;

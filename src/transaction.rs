@@ -14,7 +14,7 @@ use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::signer::Signer;
 use solana_sdk::transaction::VersionedTransaction;
 use std::sync::Arc;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use crate::constants::sol_mint;
 use crate::dex::meteora::constants::{
@@ -43,6 +43,16 @@ pub async fn build_and_send_transaction(
 ) -> anyhow::Result<Vec<Signature>> {
     let enable_flashloan = config.flashloan.as_ref().map_or(false, |k| k.enabled);
     let compute_unit_limit = config.bot.compute_unit_limit;
+    let compute_unit_price = config.spam.as_ref().map_or(1000, |s| s.compute_unit_price);
+
+    info!(
+        mint = %mint_pool_data.mint,
+        flashloan = enable_flashloan,
+        compute_unit_limit,
+        compute_unit_price,
+        rpc_count = rpc_clients.len(),
+        "Building and sending transaction"
+    );
     let mut instructions = vec![];
     // Add a random number here to make each transaction unique
     let compute_budget_ix = ComputeBudgetInstruction::set_compute_unit_limit(
@@ -50,7 +60,6 @@ pub async fn build_and_send_transaction(
     );
     instructions.push(compute_budget_ix);
 
-    let compute_unit_price = config.spam.as_ref().map_or(1000, |s| s.compute_unit_price);
     let compute_budget_price_ix =
         ComputeBudgetInstruction::set_compute_unit_price(compute_unit_price);
     instructions.push(compute_budget_price_ix);
@@ -63,9 +72,8 @@ pub async fn build_and_send_transaction(
     )?;
 
     let mut all_instructions = instructions.clone();
-
-    debug!("Adding swap instruction");
     all_instructions.push(swap_ix);
+    debug!(mint = %mint_pool_data.mint, instruction_count = all_instructions.len(), "Swap instruction added");
 
     let message = Message::try_compile(
         &wallet_kp.pubkey(),
@@ -88,21 +96,20 @@ pub async fn build_and_send_transaction(
     let mut signatures = Vec::new();
 
     for (i, client) in rpc_clients.iter().enumerate() {
-        debug!("Sending transaction through RPC client {}", i);
-
-        let signature = match send_transaction_with_retries(client, &tx, max_retries).await {
-            Ok(sig) => sig,
-            Err(e) => {
-                error!("Failed to send transaction through RPC client {}: {}", i, e);
-                continue;
+        match send_transaction_with_retries(client, &tx, max_retries).await {
+            Ok(sig) => {
+                info!(mint = %mint_pool_data.mint, rpc_index = i, signature = %sig, "Tx sent via RPC");
+                signatures.push(sig);
             }
-        };
+            Err(e) => {
+                warn!(mint = %mint_pool_data.mint, rpc_index = i, error = %e, "RPC send failed, trying next");
+            }
+        }
+    }
 
-        info!(
-            "Transaction sent successfully through RPC client {}: {}",
-            i, signature
-        );
-        signatures.push(signature);
+    if signatures.is_empty() {
+        error!(mint = %mint_pool_data.mint, "All RPC sends failed");
+        anyhow::bail!("All {} RPC client(s) failed to send transaction", rpc_clients.len());
     }
 
     Ok(signatures)

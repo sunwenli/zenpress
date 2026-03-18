@@ -9,6 +9,8 @@ compute_unit_limit = 600000
 ## Optional: how often (in milliseconds) to refresh on-chain pool data per mint.
 ## Defaults to 3000 ms (3 seconds) if not set.
 # pool_refresh_ms = 3000
+## Optional: default log level ("error", "warn", "info", "debug", "trace"). Overridden by RUST_LOG env.
+# log_level = "info"
 
 [routing]
 # Configuration for each mint to process
