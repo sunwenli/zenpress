@@ -1,3 +1,5 @@
+//! Shared constants for the arbitrage bot (e.g. SOL mint).
+
 use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
 

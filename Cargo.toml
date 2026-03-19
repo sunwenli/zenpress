@@ -1,9 +1,9 @@
 [package]
 name = "solana-onchain-arbitrage-bot"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
-description = "A simple Solana onchain arbitrage bot"
-repository = "https://github.com/cetipo/solana-onchain-arbitrage-bot"
+description = "A high-performance Solana onchain arbitrage bot (multi-DEX, MEV-aware)"
+repository = "https://github.com/insionCEO/Solana-Arbitrage-Bot"
 license = "MIT"
 
 [lib]

@@ -1,9 +1,12 @@
+//! Meteora DAMM CPI helpers for the Solana arbitrage bot.
+
 use anchor_gen::generate_cpi_crate;
 use hexlit::hex;
 
 generate_cpi_crate!("./idl.json");
 declare_id!("Eo7WjKq67rjJQSZxS6z3YkapzY3eMj6Xy8X5EQVn5UaB");
 
+/// Encodes a swap instruction for the Meteora DAMM program.
 pub fn encode_swap(amount_in: u64, min_amount_out: u64) -> Vec<u8> {
     let mut data = Vec::default();
     // NB: SHA256("global:swap").

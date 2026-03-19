@@ -1,7 +1,7 @@
 //! Centralized logging setup for the arbitrage bot.
 //!
 //! Use `RUST_LOG` to control level (e.g. `RUST_LOG=info`, `RUST_LOG=debug,solana_client=warn`).
-//! If `log_level` is set in config, it is applied as the default when `RUST_LOG` is not set.
+//! If `log_level` is set in `[bot]` in config.toml, it is used as the default when `RUST_LOG` is not set.
 
 use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter, FmtSubscriber};
 

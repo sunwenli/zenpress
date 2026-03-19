@@ -13,9 +13,9 @@ use tracing::info;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let matches = App::new("Solana Onchain Arbitrage Bot")
-        .version("0.1.0")
+        .version(env!("CARGO_PKG_VERSION"))
         .author("Cetipo")
-        .about("A simplified Solana onchain arbitrage bot")
+        .about("Multi-DEX onchain arbitrage bot with configurable logging and pool refresh")
         .arg(
             Arg::with_name("config")
                 .short('c')

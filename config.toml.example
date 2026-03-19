@@ -1,4 +1,5 @@
-# Example configuration file for simplified onchain bot
+# Example configuration for the Solana Onchain Arbitrage Bot.
+# Copy to config.toml and set wallet.private_key and RPC URLs as needed.
 
 [bot]
 # Max compute unit limit per transaction
