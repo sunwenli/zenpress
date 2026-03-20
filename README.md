@@ -2,7 +2,9 @@
 
 A **high-performance Solana arbitrage bot**
 
-**Recent updates:** Structured logging (`RUST_LOG`, `log_level` in config), configurable blockhash/pool refresh intervals, faster default loop (`process_delay`), and ATA creation retry with backoff. designed to detect and execute profitable cross-DEX trading opportunities across multiple Solana decentralized exchanges (DEXs) using optimized routing, flashloans, and MEV-aware execution strategies.
+**Recent updates:** Structured logging (`RUST_LOG`, `log_level` in config), configurable blockhash/pool refresh intervals, faster default loop (`process_delay`), and ATA creation retry with backoff.
+
+This bot is designed to detect and execute profitable cross-DEX trading opportunities across multiple Solana decentralized exchanges (DEXs) using optimized routing, flashloans, and MEV-aware execution strategies.
 
 This repository serves as a **technical reference and advanced implementation** for developers building:
 
