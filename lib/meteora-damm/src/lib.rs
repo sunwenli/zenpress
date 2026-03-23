@@ -47,6 +47,10 @@ pub fn calculate_fee(
     fee_numerator: u128,
     fee_denominator: u128,
 ) -> Option<u128> {
+    if fee_denominator == 0 {
+        return None;
+    }
+
     if fee_numerator == 0 || token_amount == 0 {
         Some(0)
     } else {
@@ -58,5 +62,30 @@ pub fn calculate_fee(
         } else {
             Some(fee)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::calculate_fee;
+
+    #[test]
+    fn fee_is_zero_when_amount_is_zero() {
+        assert_eq!(calculate_fee(0, 30, 10_000), Some(0));
+    }
+
+    #[test]
+    fn fee_is_zero_when_numerator_is_zero() {
+        assert_eq!(calculate_fee(1_000_000, 0, 10_000), Some(0));
+    }
+
+    #[test]
+    fn fee_has_minimum_of_one() {
+        assert_eq!(calculate_fee(1, 1, 10_000), Some(1));
+    }
+
+    #[test]
+    fn fee_returns_none_on_zero_denominator() {
+        assert_eq!(calculate_fee(1_000, 30, 0), None);
     }
 }
